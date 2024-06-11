@@ -205,6 +205,62 @@ class qtype_coderunner_renderer extends qtype_renderer {
 
         return parent::feedback($qa, $optionsclone);
     }
+    
+    /**
+     * 发送POST请求到langServe API，包含问题、答案和错误提示，返回AI生成的错误分析。
+     * 
+     * @param string $question 用户提出的问题。
+     * @param string $answer 用户提供的答案。
+     * @param string $errorPrompt 当错误发生时，用于提示用户的错误信息。
+     * @return string 返回从服务器接收到的响应内容，如果发生错误，则返回错误信息。
+     */
+    protected function send_post_request(String $question , String $answer, String $errorPrompt) {
+
+        // 请求 URL
+        $url = 'http://host.docker.internal:8100/learn_assistant/invoke'; //docker与主机通信的url不能用localhost
+    
+        // 请求体
+        $data = array(
+            'input' => array(
+                '1_question' => $question,
+                '2_answer_from_user' => $answer,
+                "3_error_prompt" => $errorPrompt,
+            ),
+            "config"=> array(),
+            "kwargs"=> array(),
+        );
+    
+        // 将数据转换为 JSON
+        $json_data = json_encode($data);
+    
+        // 创建 cURL 句柄
+        $ch = curl_init();
+    
+        // 设置 cURL 选项
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $json_data);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+            'Content-Type: application/json',
+            'Content-Length: ' . strlen($json_data)
+        ));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    
+        // 执行 cURL 请求
+        $response = curl_exec($ch);
+        $json_res = json_decode($response, true);
+    
+        // 检查是否有错误
+        if(curl_errno($ch)){
+            $errorMessage = 'cURL error: ' . curl_error($ch);
+            curl_close($ch);
+            return $errorMessage;
+        } else {
+            // 关闭 cURL 句柄
+            curl_close($ch);
+            return $json_res["output"]["content"];
+        }
+    }
 
     /**
      * Generate the specific feedback. This is feedback that varies according to
@@ -283,6 +339,22 @@ class qtype_coderunner_renderer extends qtype_renderer {
 
             $fb .= $this->build_feedback_summary($qa, $outcome);
         }
+        //====================new feature: 添加AI提示====================
+        $question_text = $q->questiontext;// 获取问题文本
+        $preload = isset($q->answerpreload) ? $q->answerpreload : '';// 获取预加载文本
+        $question_full = "题目：\n".$question_text."\n预选答案框：\n".$preload;
+        $currentanswer = $qa->get_last_qt_var('answer'); // 获取当前答案
+        
+        if (!$outcome->all_correct()) {//test all pass以外的情况
+            $error_prompt = $outcome->errormessage;
+            if ($error_prompt == null || $error_prompt == '') {
+                $testresults = $outcome->get_test_results($q);
+                $error_prompt = json_encode($testresults);//获取testresults. 二维array转换json string
+            }
+            $res = $this->send_post_request($question_full, $currentanswer, $error_prompt);
+            $fb .= $res;
+        }
+        //====================new feature end====================  
         $fb .= html_writer::end_tag('div');
 
         return $fb;
