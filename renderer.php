@@ -217,21 +217,21 @@ class qtype_coderunner_renderer extends qtype_renderer {
     protected function send_post_request(String $question , String $answer, String $errorPrompt) {
 
         // 请求 URL
-        $url = 'http://host.docker.internal:8100/learn_assistant/invoke'; //docker与主机通信的url不能用localhost
+        $url = 'http://host.docker.internal:8100/learning_assistant/invoke'; //docker与主机通信的url不能用localhost
     
         // 请求体
         $data = array(
             'input' => array(
-                '1_question' => $question,
-                '2_answer_from_user' => $answer,
-                "3_error_prompt" => $errorPrompt,
+                'question' => $question,
+                'answer_from_user' => $answer,
+                "error_prompt" => $errorPrompt,
             ),
             "config"=> array(),
             "kwargs"=> array(),
         );
     
         // 将数据转换为 JSON
-        $json_data = json_encode($data);
+        $json_data = json_encode($data,JSON_UNESCAPED_UNICODE);
     
         // 创建 cURL 句柄
         $ch = curl_init();
