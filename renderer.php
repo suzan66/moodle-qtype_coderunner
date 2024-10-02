@@ -349,7 +349,7 @@ class qtype_coderunner_renderer extends qtype_renderer {
             $error_prompt = $outcome->errormessage;
             if ($error_prompt == null || $error_prompt == '') {
                 $testresults = $outcome->get_test_results($q);
-                $error_prompt = json_encode($testresults);//获取testresults. 二维array转换json string
+                $error_prompt = json_encode($testresults, JSON_UNESCAPED_UNICODE);//获取testresults. 二维array转换json string
             }
             $res = $this->send_post_request($question_full, $currentanswer, $error_prompt);
             $fb .= $res;
