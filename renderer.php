@@ -217,18 +217,17 @@ class qtype_coderunner_renderer extends qtype_renderer {
     protected function send_post_request(String $question , String $answer, String $errorPrompt) {
 
         // 请求 URL
-        $url = 'http://host.docker.internal:8100/learning_assistant/invoke'; //docker与主机通信的url不能用localhost
-    
-        // 请求体
-        $data = array(
-            'input' => array(
-                'question' => $question,
-                'answer_from_user' => $answer,
-                "error_prompt" => $errorPrompt,
-            ),
-            "config"=> array(),
-            "kwargs"=> array(),
-        );
+        $url = 'http://host.docker.internal:2024/runs/wait'; //docker与主机通信的url不能用localhost
+        $data = [
+            'assistant_id' => 'agent',
+            'input' => [
+                'messages' => [
+                    ['role' => 'human', 'content' => "This is the code question:\n" . $question],
+                    ['role' => 'human', 'content' => "This is the user's attempted solution:\n" . $answer],
+                    ['role' => 'human', 'content' => "This is the error message from the code execution environment:\n" . $errorPrompt],
+                ],
+            ]
+        ];
     
         // 将数据转换为 JSON
         $json_data = json_encode($data,JSON_UNESCAPED_UNICODE);
@@ -258,7 +257,7 @@ class qtype_coderunner_renderer extends qtype_renderer {
         } else {
             // 关闭 cURL 句柄
             curl_close($ch);
-            return $json_res["output"]["content"];
+            return end($json_res["messages"])["content"];
         }
     }
 
